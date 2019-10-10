@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Lasso
 import matplotlib.pyplot as plt
 import sklearn.linear_model as skl
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
@@ -43,7 +44,7 @@ def CreateDesignMatrix_X(x, y, n, num):
 z = terrain1
 #Normalize the terrain
 z = preprocessing.normalize(z, norm='l1')
-n = 1000
+n = 100
 x = np.linspace(0, 1, n)
 y = np.linspace(0, 1, n)
 z = z[:n,:n]
@@ -67,21 +68,22 @@ for degree in range(1, maxdegree+1):
 
     NumberOfColumns = int(((degree+1)*(degree+2)/2)-1)
     l = 0
+	# for each degree, fit model into train set with correct number of beta values
     for lmb in lambdas:
-        print('lmb is', lmb)
-        #Beta calculated for degree 1
-
-        betaRidge = np.linalg.inv(np.transpose(X_train[:,:NumberOfColumns]).dot(X_train[:,:NumberOfColumns]) + lmb*np.identity(NumberOfColumns)).dot(np.transpose(X_train[:,:NumberOfColumns])).dot(y_train)
-        ytilde = X_test[:,:NumberOfColumns]@betaRidge
-        print(ytilde.shape)
-        print(y_test.shape)
-        ypred = X_train[:,:NumberOfColumns]@betaRidge
-        testerror[degree-1,l] = mean_squared_error(y_test, ytilde)
-        trainerror[degree-1,l] = mean_squared_error(y_train, ypred)
-        l = l+ 1
-        #testerrorDegree[degree] = testerror
-        #trainerrorDegree[degree] = trainerror
-        polydegree[degree-1] = degree
+		lasso = Lasso(alpha = lmb, max_iter = 10e5, tol = 0.0001, fit_intercept = False)
+		lasso.fit(X_train[:,:NumberOfColumns],y_train)
+		betaLasso = lasso.coef_
+		ytilde = X_test[:,:NumberOfColumns]@betaLasso
+		print(ytilde.shape)
+		print(y_test.shape)
+		ypred = X_train[:,:NumberOfColumns]@betaLasso
+		testerror[degree-1,l] = mean_squared_error(y_test, ytilde)
+		trainerror[degree-1,l] = mean_squared_error(y_train, ypred)
+		l = l+ 1
+		#testerrorDegree[degree] = testerror
+		#trainerrorDegree[degree] = trainerror
+		polydegree[degree-1] = degree
+# print each lambda value for each train and test error
 for i, lmd in enumerate(lambdas):
     print(testerror[:, i].shape)
     print(testerror[i, :].shape)
